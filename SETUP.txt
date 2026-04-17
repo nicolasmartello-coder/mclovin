@@ -1,0 +1,48 @@
+Mclovin — Slack bot (Beta POC)
+==============================
+
+Criterio tomado: HTTP (no Socket Mode) para un solo endpoint público barato en Fly.io / Railway.
+Nombre del bot en Slack: configurá Display name = "Mclovin" en la app (Basic Information).
+
+1) Slack app (https://api.slack.com/apps)
+   - Create New App → From scratch.
+   - OAuth & Permissions → Bot Token Scopes:
+       chat:write, app_mentions:read, commands
+   - Install to Workspace → copiá Bot User OAuth Token → SLACK_BOT_TOKEN (xoxb-...)
+   - Basic Information → Signing Secret → SLACK_SIGNING_SECRET
+
+   Slash Commands (cada una, Request URL = https://TU_HOST/slack/events):
+       /review  — texto: URL del PR de GitHub
+       /fix     — texto: owner/repo + descripción del fix
+
+   Event Subscriptions (opcional, para @menciones):
+       Request URL: https://TU_HOST/slack/events
+       Subscribe to bot events: app_mention
+   Invitá al bot al canal: /invite @Mclovin
+
+2) GitHub
+   Fine-grained PAT o classic con acceso al repo: Contents read/write, Pull requests read/write.
+   GITHUB_TOKEN=...
+
+3) OpenAI
+   OPENAI_API_KEY=...
+   OPENAI_MODEL=gpt-4o-mini   (opcional, barato para POC)
+
+4) Variables opcionales
+   DEFAULT_GITHUB_OWNER / DEFAULT_GITHUB_REPO — si querés omitir owner/repo en /fix
+
+5) Local
+   cp .env.example .env   # completar
+   npm install && npm run dev
+   Túnel HTTPS (ngrok, cloudflared): https://xxx.ngrok.io → localhost:3000
+   En Slack, Request URL = https://xxx.ngrok.io/slack/events
+
+6) Fly.io (barato para POC)
+   fly auth login
+   cd mclovin && fly launch --no-deploy   # o ajustá fly.toml (nombre app)
+   fly secrets set SLACK_BOT_TOKEN=... SLACK_SIGNING_SECRET=... GITHUB_TOKEN=... OPENAI_API_KEY=...
+   fly deploy
+   Poné la URL https://<app>.fly.dev/slack/events en Slack.
+
+7) Health
+   GET https://TU_HOST/health → ok
