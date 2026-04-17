@@ -1,34 +1,46 @@
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { config } from "../config.js";
 
 const MAX_DIFF_CHARS = 120_000;
+const DEFAULT_MAX_TOKENS = 8192;
 
 function truncate(s: string, max: number): string {
   if (s.length <= max) return s;
   return `${s.slice(0, max)}\n\n[…truncated, ${s.length - max} chars omitted]`;
 }
 
-export async function runCodeReview(diff: string, prTitle: string): Promise<string> {
-  const client = new OpenAI({ apiKey: config.openaiApiKey() });
-  const model = config.openaiModel();
-  const diffIn = truncate(diff, MAX_DIFF_CHARS);
+function textFromMessage(message: Anthropic.Message): string {
+  const parts: string[] = [];
+  for (const block of message.content) {
+    if (block.type === "text") {
+      parts.push(block.text);
+    }
+  }
+  return parts.join("").trim();
+}
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are Mclovin, a careful senior engineer doing code review. Be concise, actionable, and note severity (blocking vs nit). Use markdown with headings.",
-      },
-      {
-        role: "user",
-        content: `PR title: ${prTitle}\n\nDiff:\n\`\`\`diff\n${diffIn}\n\`\`\``,
-      },
-    ],
-    temperature: 0.3,
+async function claudeText(
+  system: string,
+  user: string,
+  options: { temperature: number; maxTokens?: number }
+): Promise<string> {
+  const client = new Anthropic({ apiKey: config.anthropicApiKey() });
+  const message = await client.messages.create({
+    model: config.anthropicModel(),
+    max_tokens: options.maxTokens ?? DEFAULT_MAX_TOKENS,
+    system,
+    temperature: options.temperature,
+    messages: [{ role: "user", content: user }],
   });
-  const text = completion.choices[0]?.message?.content?.trim();
+  return textFromMessage(message);
+}
+
+export async function runCodeReview(diff: string, prTitle: string): Promise<string> {
+  const diffIn = truncate(diff, MAX_DIFF_CHARS);
+  const system =
+    "You are Mclovin, a careful senior engineer doing code review. Be concise, actionable, and note severity (blocking vs nit). Use markdown with headings.";
+  const user = `PR title: ${prTitle}\n\nDiff:\n\`\`\`diff\n${diffIn}\n\`\`\``;
+  const text = await claudeText(system, user, { temperature: 0.3 });
   return text || "(Mclovin: empty model response)";
 }
 
@@ -58,25 +70,10 @@ export async function runFixPathPlan(input: {
   issueDescription: string;
   threadContext: string;
 }): Promise<string[]> {
-  const client = new OpenAI({ apiKey: config.openaiApiKey() });
-  const model = config.openaiModel();
-
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content:
-          'You are Mclovin. Reply with ONLY a JSON object: {"paths":["relative/path.ts",...],"note":"short"}. Max 8 paths. Paths must be repo-relative. No markdown.',
-      },
-      {
-        role: "user",
-        content: `Repo ${input.owner}/${input.repo} (branch ${input.baseBranch}).\n\nIssue:\n${input.issueDescription}\n\nThread:\n${input.threadContext || "(none)"}`,
-      },
-    ],
-    temperature: 0.1,
-  });
-  const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+  const system =
+    'You are Mclovin. Reply with ONLY a JSON object: {"paths":["relative/path.ts",...],"note":"short"}. Max 8 paths. Paths must be repo-relative. No markdown.';
+  const user = `Repo ${input.owner}/${input.repo} (branch ${input.baseBranch}).\n\nIssue:\n${input.issueDescription}\n\nThread:\n${input.threadContext || "(none)"}`;
+  const raw = await claudeText(system, user, { temperature: 0.1, maxTokens: 2048 });
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
   if (start === -1 || end === -1) throw new Error("No JSON object in path plan");
@@ -94,9 +91,6 @@ export async function runFixAgent(input: {
   fileHints: string[];
   fileSnapshots: { path: string; content: string }[];
 }): Promise<FixFile[]> {
-  const client = new OpenAI({ apiKey: config.openaiApiKey() });
-  const model = config.openaiModel();
-
   const hints =
     input.fileHints.length > 0
       ? `Preferred paths (hints): ${input.fileHints.join(", ")}`
@@ -106,21 +100,9 @@ export async function runFixAgent(input: {
     .map((f) => `--- FILE: ${f.path} ---\n${truncate(f.content, 60_000)}`)
     .join("\n\n");
 
-  const completion = await client.chat.completions.create({
-    model,
-    messages: [
-      {
-        role: "system",
-        content: `You are Mclovin, an implementation agent. Output ONLY a JSON array of objects with keys "path" and "content" (full file contents after your edits). No markdown fences. Repository: ${input.owner}/${input.repo}, base branch: ${input.baseBranch}.`,
-      },
-      {
-        role: "user",
-        content: `Issue / task:\n${input.issueDescription}\n\nThread context:\n${input.threadContext || "(none)"}\n\n${hints}\n\nCurrent file contents (edit these or add new paths as needed):\n\n${filesBlock || "(no files loaded — return minimal changes only if you cannot proceed)"}`,
-      },
-    ],
-    temperature: 0.2,
-  });
+  const system = `You are Mclovin, an implementation agent. Output ONLY a JSON array of objects with keys "path" and "content" (full file contents after your edits). No markdown fences. Repository: ${input.owner}/${input.repo}, base branch: ${input.baseBranch}.`;
+  const user = `Issue / task:\n${input.issueDescription}\n\nThread context:\n${input.threadContext || "(none)"}\n\n${hints}\n\nCurrent file contents (edit these or add new paths as needed):\n\n${filesBlock || "(no files loaded — return minimal changes only if you cannot proceed)"}`;
 
-  const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+  const raw = await claudeText(system, user, { temperature: 0.2, maxTokens: DEFAULT_MAX_TOKENS });
   return extractJsonArray(raw);
 }

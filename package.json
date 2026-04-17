@@ -13,10 +13,10 @@
     "dev": "tsx watch src/index.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
     "@octokit/rest": "^21.0.2",
     "@slack/bolt": "^4.1.0",
-    "express": "^4.21.0",
-    "openai": "^4.73.0"
+    "express": "^4.21.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

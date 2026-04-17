@@ -24,9 +24,9 @@ Nombre del bot en Slack: configurá Display name = "Mclovin" en la app (Basic In
    Fine-grained PAT o classic con acceso al repo: Contents read/write, Pull requests read/write.
    GITHUB_TOKEN=...
 
-3) OpenAI
-   OPENAI_API_KEY=...
-   OPENAI_MODEL=gpt-4o-mini   (opcional, barato para POC)
+3) Anthropic (Claude)
+   ANTHROPIC_API_KEY=...   (Console / acceso que dé la empresa)
+   ANTHROPIC_MODEL=...     (opcional; default en código, debe ser un modelo permitido para tu key)
 
 4) Variables opcionales
    DEFAULT_GITHUB_OWNER / DEFAULT_GITHUB_REPO — si querés omitir owner/repo en /fix
@@ -40,7 +40,7 @@ Nombre del bot en Slack: configurá Display name = "Mclovin" en la app (Basic In
 6) Railway (deploy)
    - Variables van en el SERVICIO que corre el Dockerfile (icono del servicio → Variables),
      no solo en el proyecto, si no el contenedor arranca sin SLACK_SIGNING_SECRET etc.
-   - Nombres exactos: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, GITHUB_TOKEN, OPENAI_API_KEY
+   - Nombres exactos: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, GITHUB_TOKEN, ANTHROPIC_API_KEY
    - SLACK_BOT_TOKEN = OAuth & Permissions → Bot User OAuth Token (xoxb-), misma app que el Signing Secret.
    - Si el log dice invalid_auth: token mal copiado, revocado, o de otra app. Reinstalar app en Slack
      y pegar de nuevo el xoxb-. Probar en tu máquina:
@@ -52,7 +52,7 @@ Nombre del bot en Slack: configurá Display name = "Mclovin" en la app (Basic In
 7) Fly.io (barato para POC)
    fly auth login
    cd mclovin && fly launch --no-deploy   # o ajustá fly.toml (nombre app)
-   fly secrets set SLACK_BOT_TOKEN=... SLACK_SIGNING_SECRET=... GITHUB_TOKEN=... OPENAI_API_KEY=...
+   fly secrets set SLACK_BOT_TOKEN=... SLACK_SIGNING_SECRET=... GITHUB_TOKEN=... ANTHROPIC_API_KEY=...
    fly deploy
    Poné la URL https://<app>.fly.dev/slack/events en Slack.
 
