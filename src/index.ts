@@ -1,5 +1,7 @@
 import { App, ExpressReceiver } from "@slack/bolt";
-import { config } from "./config.js";
+import { assertRequiredEnv, config } from "./config.js";
+
+assertRequiredEnv();
 import { runCodeReview, runFixAgent, runFixPathPlan } from "./lib/agent.js";
 import {
   createBranch,
