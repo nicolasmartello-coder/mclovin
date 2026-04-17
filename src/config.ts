@@ -8,17 +8,27 @@ const REQUIRED_ENV = [
 /** Call before creating the Slack receiver so Railway/logs show every missing key at once. */
 export function assertRequiredEnv(): void {
   const missing = REQUIRED_ENV.filter((k) => !process.env[k]?.trim());
-  if (missing.length === 0) return;
-  console.error(
-    "[Mclovin] Faltan variables de entorno. En Railway: abrí el SERVICIO del bot (no solo el proyecto) → Variables → agregar cada una:\n  " +
-      missing.join("\n  ")
-  );
-  process.exit(1);
+  if (missing.length > 0) {
+    console.error(
+      "[Mclovin] Faltan variables de entorno. En Railway: servicio del bot → Variables:\n  " +
+        missing.join("\n  ")
+    );
+    process.exit(1);
+  }
+
+  const bot = process.env.SLACK_BOT_TOKEN?.trim() ?? "";
+  if (!bot.startsWith("xoxb-")) {
+    console.error(
+      "[Mclovin] SLACK_BOT_TOKEN debe ser el Bot User OAuth Token (empieza con xoxb-). " +
+        "En Slack: OAuth & Permissions → Bot User OAuth Token. No pongas el Signing Secret ni comillas."
+    );
+    process.exit(1);
+  }
 }
 
 function req(name: string): string {
-  const v = process.env[name];
-  if (!v?.trim()) throw new Error(`Missing required env: ${name}`);
+  const v = process.env[name]?.trim();
+  if (!v) throw new Error(`Missing required env: ${name}`);
   return v;
 }
 
