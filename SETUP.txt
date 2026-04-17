@@ -41,6 +41,12 @@ Nombre del bot en Slack: configurá Display name = "Mclovin" en la app (Basic In
    - Variables van en el SERVICIO que corre el Dockerfile (icono del servicio → Variables),
      no solo en el proyecto, si no el contenedor arranca sin SLACK_SIGNING_SECRET etc.
    - Nombres exactos: SLACK_BOT_TOKEN, SLACK_SIGNING_SECRET, GITHUB_TOKEN, OPENAI_API_KEY
+   - SLACK_BOT_TOKEN = OAuth & Permissions → Bot User OAuth Token (xoxb-), misma app que el Signing Secret.
+   - Si el log dice invalid_auth: token mal copiado, revocado, o de otra app. Reinstalar app en Slack
+     y pegar de nuevo el xoxb-. Probar en tu máquina:
+       curl -s -H "Authorization: Bearer xoxb-..." https://slack.com/api/auth.test
+     Debe devolver "ok": true.
+   - Opcional: SLACK_SKIP_AUTH_TEST=true evita el crash al arranque (no corrige un token inválido).
    - Tras guardar, redeploy si no arranca solo.
 
 7) Fly.io (barato para POC)

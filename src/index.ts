@@ -1,7 +1,5 @@
 import { App, ExpressReceiver } from "@slack/bolt";
 import { assertRequiredEnv, config } from "./config.js";
-
-assertRequiredEnv();
 import { runCodeReview, runFixAgent, runFixPathPlan } from "./lib/agent.js";
 import {
   createBranch,
@@ -16,6 +14,16 @@ import {
   parseRepoPair,
 } from "./lib/github.js";
 
+assertRequiredEnv();
+
+/** Si es true, Bolt no llama auth.test al iniciar (solo para diagnosticar). El token sigue teniendo que ser válido para responder en Slack. */
+const skipSlackAuthTest = process.env.SLACK_SKIP_AUTH_TEST === "true";
+if (skipSlackAuthTest) {
+  console.warn(
+    "[Mclovin] SLACK_SKIP_AUTH_TEST=true: arranque sin verificar token. Si el token es inválido, /review y /fix fallarán igual."
+  );
+}
+
 const receiver = new ExpressReceiver({
   signingSecret: config.slackSigningSecret(),
   processBeforeResponse: true,
@@ -25,6 +33,7 @@ const app = new App({
   token: config.slackBotToken(),
   receiver,
   deferInitialization: true,
+  tokenVerificationEnabled: !skipSlackAuthTest,
 });
 
 function splitRepoAndRest(text: string): { pair: string; rest: string } | null {
